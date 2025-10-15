@@ -35,7 +35,7 @@
             font-size: 1.1em;
             margin-bottom: 25px;
         }
-        .auth-container, .buttons-container {
+        .buttons-container {
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -158,18 +158,39 @@
         .delete-button:hover {
             background-color: #d32f2f;
         }
-        #auth-button, #save-cloud-button, #load-cloud-button {
-            margin-top: 10px;
-            padding: 10px 20px;
+        #export-button {
+            background-color: #4285F4;
+            margin-top: 20px;
+        }
+        #import-input {
+            display: none;
+        }
+        #import-label {
+            display: inline-block;
             background-color: #4285F4;
             color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        #auth-status {
-            margin-top: 15px;
+            padding: 15px 25px;
+            font-size: 1em;
             font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        #import-label:hover {
+            background-color: #3b78e7;
+        }
+        @media (min-width: 600px) {
+            .buttons-container, .auth-buttons-container {
+                flex-direction: row;
+                justify-content: center;
+            }
+            ul li {
+                flex-direction: row;
+                align-items: center;
+            }
+            ul li input[type="number"] {
+                width: 70px;
+            }
         }
     </style>
 </head>
@@ -179,20 +200,17 @@
         <h1>Gerador de Treinos</h1>
         <p>Selecione seu treino, registre seu progresso e salve no seu Google Drive.</p>
 
-        <div class="auth-container">
-            <button id="auth-button">Login com Google</button>
-            <div id="auth-status"></div>
-            <button id="save-cloud-button" style="display:none;">Salvar no Drive</button>
-            <button id="load-cloud-button" style="display:none;">Carregar do Drive</button>
-        </div>
-
         <div class="buttons-container">
             <button onclick="gerarTreino('A')">Treino A</button>
             <button onclick="gerarTreino('B')">Treino B</button>
             <button onclick="gerarTreino('C')">Treino C</button>
         </div>
+        
+        <button onclick="mostrarHistorico()">Ver Histórico</button>
 
-        <button onclick="mostrarHistorico()">Ver Histórico (Local)</button>
+        <button id="export-button" onclick="exportData()">Exportar Histórico</button>
+        <input type="file" id="import-input" accept=".json" onchange="importData(event)">
+        <label for="import-input" id="import-label">Importar Histórico</label>
 
         <div id="treino-container">
             </div>
@@ -201,137 +219,11 @@
             </div>
     </div>
 
-    <script src="https://apis.google.com/js/api.js"></script>
     <script>
-        const CLIENT_ID = '74728504867-8lh6airhmrigno0pnkee61i8lq4a34vu.apps.googleusercontent.com';
-        const API_KEY = '';
-        const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"];
-        const SCOPES = 'https://www.googleapis.com/auth/drive.file';
-        
-        let fileId = null;
+        document.addEventListener('DOMContentLoaded', () => {
+            mostrarHistorico();
+        });
 
-        document.getElementById('auth-button').onclick = handleAuthClick;
-        document.getElementById('save-cloud-button').onclick = saveToDrive;
-        document.getElementById('load-cloud-button').onclick = loadFromDrive;
-
-        function handleClientLoad() {
-            gapi.load('client:auth2', initClient);
-        }
-
-        function initClient() {
-            gapi.client.init({
-                apiKey: API_KEY,
-                clientId: CLIENT_ID,
-                discoveryDocs: DISCOVERY_DOCS,
-                scope: SCOPES
-            }).then(() => {
-                const auth2 = gapi.auth2.getAuthInstance();
-                updateButtons(auth2.isSignedIn.get());
-                auth2.isSignedIn.listen(updateButtons);
-            });
-        }
-
-        function updateButtons(isSignedIn) {
-            const authStatus = document.getElementById('auth-status');
-            const authButton = document.getElementById('auth-button');
-            const saveCloudButton = document.getElementById('save-cloud-button');
-            const loadCloudButton = document.getElementById('load-cloud-button');
-
-            if (isSignedIn) {
-                authStatus.textContent = "Conectado ao Google Drive.";
-                authButton.textContent = "Logout";
-                saveCloudButton.style.display = 'inline-block';
-                loadCloudButton.style.display = 'inline-block';
-            } else {
-                authStatus.textContent = "Desconectado.";
-                authButton.textContent = "Login com Google";
-                saveCloudButton.style.display = 'none';
-                loadCloudButton.style.display = 'none';
-            }
-        }
-
-        function handleAuthClick() {
-            if (gapi.auth2.getAuthInstance().isSignedIn.get()) {
-                gapi.auth2.getAuthInstance().signOut();
-            } else {
-                gapi.auth2.getAuthInstance().signIn();
-            }
-        }
-
-        function saveToDrive() {
-            if (!gapi.auth2.getAuthInstance().isSignedIn.get()) {
-                alert('Você precisa estar logado para salvar no Drive.');
-                return;
-            }
-            const historico = JSON.parse(localStorage.getItem('treinoHistorico') || '[]');
-            const content = JSON.stringify(historico);
-
-            gapi.client.drive.files.list({
-                q: "name='HistoricoTreinos.json' and mimeType='application/json'",
-                fields: 'files(id)'
-            }).then(resp => {
-                const files = resp.result.files;
-                if (files && files.length > 0) {
-                    fileId = files[0].id;
-                    const body = gapi.client.drive.files.update({
-                        fileId: fileId,
-                        uploadType: 'media',
-                        media: {
-                            mimeType: 'application/json',
-                            body: content
-                        }
-                    });
-                    body.execute(resp => {
-                        alert('Arquivo atualizado no Google Drive!');
-                    });
-                } else {
-                    const fileMetadata = {
-                        'name': 'HistoricoTreinos.json',
-                        'mimeType': 'application/json'
-                    };
-                    const body = gapi.client.drive.files.create({
-                        resource: fileMetadata,
-                        media: {
-                            mimeType: 'application/json',
-                            body: content
-                        },
-                        fields: 'id'
-                    });
-                    body.execute(resp => {
-                        fileId = resp.id;
-                        alert('Arquivo criado no Google Drive!');
-                    });
-                }
-            });
-        }
-
-        function loadFromDrive() {
-            if (!gapi.auth2.getAuthInstance().isSignedIn.get()) {
-                alert('Você precisa estar logado para carregar do Drive.');
-                return;
-            }
-            gapi.client.drive.files.list({
-                q: "name='HistoricoTreinos.json' and mimeType='application/json'",
-                fields: 'files(id)'
-            }).then(resp => {
-                const files = resp.result.files;
-                if (files && files.length > 0) {
-                    fileId = files[0].id;
-                    gapi.client.drive.files.get({
-                        fileId: fileId,
-                        alt: 'media'
-                    }).then(resp => {
-                        const historico = resp.result;
-                        localStorage.setItem('treinoHistorico', JSON.stringify(historico));
-                        alert('Histórico carregado com sucesso!');
-                        mostrarHistorico();
-                    });
-                } else {
-                    alert('Nenhum histórico encontrado no seu Drive.');
-                }
-            });
-        }
-        
         function gerarTreino(tipoTreino) {
             document.getElementById('historico-container').innerHTML = '';
             let tituloTreino = "";
@@ -451,7 +343,7 @@
                 message.style.display = 'none';
             }, 3000);
         }
-        
+
         function mostrarHistorico() {
             document.getElementById('treino-container').innerHTML = '';
             const historicoContainer = document.getElementById('historico-container');
@@ -486,15 +378,42 @@
 
         function excluirTreino(index) {
             const historico = JSON.parse(localStorage.getItem('treinoHistorico') || '[]');
-            
             historico.splice(index, 1);
-            
             localStorage.setItem('treinoHistorico', JSON.stringify(historico));
-            
             mostrarHistorico();
         }
 
-        handleClientLoad();
+        function exportData() {
+            const historico = localStorage.getItem('treinoHistorico') || '[]';
+            const blob = new Blob([historico], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'historico_treinos.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) {
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const historico = JSON.parse(e.target.result);
+                    localStorage.setItem('treinoHistorico', JSON.stringify(historico));
+                    alert('Histórico importado com sucesso!');
+                    mostrarHistorico();
+                } catch (error) {
+                    alert('Erro ao importar arquivo. Certifique-se de que é um arquivo .json válido.');
+                }
+            };
+            reader.readAsText(file);
+        }
     </script>
 </body>
 </html>
