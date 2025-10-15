@@ -158,25 +158,18 @@
         .delete-button:hover {
             background-color: #d32f2f;
         }
-        .auth-buttons-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 15px;
-            margin-bottom: 25px;
+        #auth-button, #save-cloud-button, #load-cloud-button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            background-color: #4285F4;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
         }
-        @media (min-width: 600px) {
-            .buttons-container, .auth-buttons-container {
-                flex-direction: row;
-                justify-content: center;
-            }
-            ul li {
-                flex-direction: row;
-                align-items: center;
-            }
-            ul li input[type="number"] {
-                width: 70px;
-            }
+        #auth-status {
+            margin-top: 15px;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -186,8 +179,9 @@
         <h1>Gerador de Treinos</h1>
         <p>Selecione seu treino, registre seu progresso e salve no seu Google Drive.</p>
 
-        <div class="auth-buttons-container">
+        <div class="auth-container">
             <button id="auth-button">Login com Google</button>
+            <div id="auth-status"></div>
             <button id="save-cloud-button" style="display:none;">Salvar no Drive</button>
             <button id="load-cloud-button" style="display:none;">Carregar do Drive</button>
         </div>
@@ -209,12 +203,11 @@
 
     <script src="https://apis.google.com/js/api.js"></script>
     <script>
-        // SUBSTITUA ESTE VALOR PELO SEU ID DO CLIENTE
         const CLIENT_ID = '74728504867-8lh6airhmrigno0pnkee61i8lq4a34vu.apps.googleusercontent.com';
         const API_KEY = '';
         const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"];
         const SCOPES = 'https://www.googleapis.com/auth/drive.file';
-
+        
         let fileId = null;
 
         document.getElementById('auth-button').onclick = handleAuthClick;
@@ -233,22 +226,27 @@
                 scope: SCOPES
             }).then(() => {
                 const auth2 = gapi.auth2.getAuthInstance();
-                if (auth2.isSignedIn.get()) {
-                    updateButtons(true);
-                }
+                updateButtons(auth2.isSignedIn.get());
                 auth2.isSignedIn.listen(updateButtons);
             });
         }
 
         function updateButtons(isSignedIn) {
+            const authStatus = document.getElementById('auth-status');
+            const authButton = document.getElementById('auth-button');
+            const saveCloudButton = document.getElementById('save-cloud-button');
+            const loadCloudButton = document.getElementById('load-cloud-button');
+
             if (isSignedIn) {
-                document.getElementById('auth-button').textContent = "Logout";
-                document.getElementById('save-cloud-button').style.display = 'inline-block';
-                document.getElementById('load-cloud-button').style.display = 'inline-block';
+                authStatus.textContent = "Conectado ao Google Drive.";
+                authButton.textContent = "Logout";
+                saveCloudButton.style.display = 'inline-block';
+                loadCloudButton.style.display = 'inline-block';
             } else {
-                document.getElementById('auth-button').textContent = "Login com Google";
-                document.getElementById('save-cloud-button').style.display = 'none';
-                document.getElementById('load-cloud-button').style.display = 'none';
+                authStatus.textContent = "Desconectado.";
+                authButton.textContent = "Login com Google";
+                saveCloudButton.style.display = 'none';
+                loadCloudButton.style.display = 'none';
             }
         }
 
@@ -268,36 +266,43 @@
             const historico = JSON.parse(localStorage.getItem('treinoHistorico') || '[]');
             const content = JSON.stringify(historico);
 
-            if (fileId) {
-                const body = gapi.client.drive.files.update({
-                    fileId: fileId,
-                    uploadType: 'media',
-                    media: {
-                        mimeType: 'application/json',
-                        body: content
-                    }
-                });
-                body.execute(resp => {
-                    alert('Arquivo atualizado no Google Drive!');
-                });
-            } else {
-                const fileMetadata = {
-                    'name': 'HistoricoTreinos.json',
-                    'mimeType': 'application/json'
-                };
-                const body = gapi.client.drive.files.create({
-                    resource: fileMetadata,
-                    media: {
-                        mimeType: 'application/json',
-                        body: content
-                    },
-                    fields: 'id'
-                });
-                body.execute(resp => {
-                    fileId = resp.id;
-                    alert('Arquivo criado no Google Drive!');
-                });
-            }
+            gapi.client.drive.files.list({
+                q: "name='HistoricoTreinos.json' and mimeType='application/json'",
+                fields: 'files(id)'
+            }).then(resp => {
+                const files = resp.result.files;
+                if (files && files.length > 0) {
+                    fileId = files[0].id;
+                    const body = gapi.client.drive.files.update({
+                        fileId: fileId,
+                        uploadType: 'media',
+                        media: {
+                            mimeType: 'application/json',
+                            body: content
+                        }
+                    });
+                    body.execute(resp => {
+                        alert('Arquivo atualizado no Google Drive!');
+                    });
+                } else {
+                    const fileMetadata = {
+                        'name': 'HistoricoTreinos.json',
+                        'mimeType': 'application/json'
+                    };
+                    const body = gapi.client.drive.files.create({
+                        resource: fileMetadata,
+                        media: {
+                            mimeType: 'application/json',
+                            body: content
+                        },
+                        fields: 'id'
+                    });
+                    body.execute(resp => {
+                        fileId = resp.id;
+                        alert('Arquivo criado no Google Drive!');
+                    });
+                }
+            });
         }
 
         function loadFromDrive() {
@@ -331,7 +336,81 @@
             document.getElementById('historico-container').innerHTML = '';
             let tituloTreino = "";
             let exerciciosData = [];
-            // ... (resto da função é o mesmo)
+
+            if (tipoTreino === 'A') {
+                tituloTreino = "A: Peito, Ombros e Tríceps";
+                exerciciosData = [
+                    "Supino com Barra (Reto): 4 séries de 8 repetições",
+                    "Desenvolvimento com Halteres (Sentado): 3 séries de 10 repetições",
+                    "Voador (Peck Deck) ou Crucifixo com Halteres: 3 séries de 12 repetições",
+                    "Elevação Lateral: 3 séries de 15 repetições",
+                    "Tríceps no Pulley com corda: 3 séries de 12 repetições"
+                ];
+            } else if (tipoTreino === 'B') {
+                tituloTreino = "B: Costas e Bíceps";
+                exerciciosData = [
+                    "Barra Fixa ou Puxada Frontal: 4 séries de 8-10 repetições",
+                    "Remada Curvada com Barra: 3 séries de 10 repetições",
+                    "Remada Serrote com Halter: 3 séries de 10-12 repetições (cada lado)",
+                    "Rosca Direta com Barra: 3 séries de 10-12 repetições",
+                    "Rosca Concentrada com Halter: 3 séries de 12 repetições (cada braço)"
+                ];
+            } else if (tipoTreino === 'C') {
+                tituloTreino = "C: Pernas e Abdômen";
+                exerciciosData = [
+                    "Agachamento Livre com Barra: 4 séries de 8-10 repetições",
+                    "Leg Press: 3 séries de 12 repetições",
+                    "Cadeira Extensora: 3 séries de 15 repetições",
+                    "Cadeira Flexora: 3 séries de 15 repetições",
+                    "Abdominal na prancha declinada: 3 séries de 15-20 repetições"
+                ];
+            }
+
+            let listaHTML = `
+                <h2>${tituloTreino}</h2>
+                <p>Foco em força e hipertrofia. Descanse 60-90 segundos entre as séries.</p>
+                <h3>Exercícios:</h3>
+                <ul id="exercise-list">
+            `;
+
+            exerciciosData.forEach((exercicio, index) => {
+                listaHTML += `
+                    <li>
+                        <div class="exercise-content">
+                            <input type="checkbox" id="check-${tipoTreino}-${index}" onclick="toggleCompleted(this)">
+                            <span class="exercise-text">${exercicio}</span>
+                        </div>
+                        <input type="number" id="weight-${tipoTreino}-${index}" placeholder="kg" min="0">
+                    </li>
+                `;
+            });
+
+            listaHTML += `
+                </ul>
+                <div class="cardio-section">
+                    <h3>Cardio</h3>
+                    <div class="cardio-input">
+                        <label for="cardioMinutes">Tempo de Cardio (min):</label>
+                        <input type="number" id="cardioMinutes" placeholder="minutos" min="0">
+                    </div>
+                </div>
+                <button id="save-button" onclick="salvarTreino('${tipoTreino}', '${tituloTreino}')">Salvar Treino</button>
+                <div id="saved-message" class="saved-message" style="display:none;">Treino salvo com sucesso!</div>
+            `;
+
+            document.getElementById("treino-container").innerHTML = `<div class="treino-box">${listaHTML}</div>`;
+            
+            const savedData = localStorage.getItem(`ultimo-treino-${tipoTreino}`);
+            if (savedData) {
+                const data = JSON.parse(savedData);
+                const exercises = document.querySelectorAll('#exercise-list li');
+                exercises.forEach((item, index) => {
+                    const weightInput = item.querySelector('input[type="number"]');
+                    if (data.exercises[index] && data.exercises[index].weight) {
+                         weightInput.value = data.exercises[index].weight;
+                    }
+                });
+            }
         }
 
         function toggleCompleted(checkbox) {
@@ -372,7 +451,7 @@
                 message.style.display = 'none';
             }, 3000);
         }
-
+        
         function mostrarHistorico() {
             document.getElementById('treino-container').innerHTML = '';
             const historicoContainer = document.getElementById('historico-container');
@@ -416,10 +495,6 @@
         }
 
         handleClientLoad();
-
-        // O resto do código (gerarTreino, toggleCompleted, etc) é o mesmo.
-        // Copie e cole todo o conteúdo do arquivo anterior aqui
-        
     </script>
 </body>
 </html>
