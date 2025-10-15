@@ -219,18 +219,22 @@
 
         function updateSigninStatus(isSignedIn) {
             if (isSignedIn) {
-                document.getElementById('auth-button').style.display = 'none';
+                document.getElementById('auth-button').textContent = "Logout";
                 document.getElementById('save-cloud-button').style.display = 'inline-block';
                 document.getElementById('load-cloud-button').style.display = 'inline-block';
             } else {
-                document.getElementById('auth-button').style.display = 'inline-block';
+                document.getElementById('auth-button').textContent = "Login com Google";
                 document.getElementById('save-cloud-button').style.display = 'none';
                 document.getElementById('load-cloud-button').style.display = 'none';
             }
         }
 
         function handleAuthClick() {
-            gapi.auth2.getAuthInstance().signIn();
+            if (gapi.auth2.getAuthInstance().isSignedIn.get()) {
+                gapi.auth2.getAuthInstance().signOut();
+            } else {
+                gapi.auth2.getAuthInstance().signIn();
+            }
         }
 
         function saveToDrive() {
