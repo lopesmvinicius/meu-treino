@@ -150,13 +150,26 @@
         .delete-button:hover {
             background-color: #d32f2f;
         }
+        #auth-button, #save-cloud-button, #load-cloud-button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            background-color: #4285F4;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
 
     <div class="container">
         <h1>Gerador de Treinos</h1>
-        <p>Selecione seu treino do dia, registre seu progresso e salve no histórico.</p>
+        <p>Selecione seu treino, registre seu progresso e salve no seu Google Drive.</p>
+        
+        <button id="auth-button">Login com Google</button>
+        <button id="save-cloud-button" style="display:none;">Salvar no Drive</button>
+        <button id="load-cloud-button" style="display:none;">Carregar do Drive</button>
 
         <div class="buttons-container">
             <button onclick="gerarTreino('A')">Treino A</button>
@@ -164,7 +177,7 @@
             <button onclick="gerarTreino('C')">Treino C</button>
         </div>
         
-        <button onclick="mostrarHistorico()">Ver Histórico</button>
+        <button onclick="mostrarHistorico()">Ver Histórico (Local)</button>
 
         <div id="treino-container">
             </div>
@@ -173,7 +186,111 @@
             </div>
     </div>
 
+    <script src="https://apis.google.com/js/api.js"></script>
     <script>
+	
+        // SUBSTITUA ESTE VALOR PELO SEU ID DO CLIENTE
+        const CLIENT_ID = '74728504867-8lh6airhmrigno0pnkee61i8lq4a34vu.apps.googleusercontent.com';
+        const API_KEY = ''; // Não é necessário, mas é boa prática
+        const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"];
+        const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+        
+        let fileId = null;
+
+        document.getElementById('auth-button').onclick = handleAuthClick;
+        document.getElementById('save-cloud-button').onclick = saveToDrive;
+        document.getElementById('load-cloud-button').onclick = loadFromDrive;
+
+        function handleClientLoad() {
+            gapi.load('client:auth2', initClient);
+        }
+
+        function initClient() {
+            gapi.client.init({
+                apiKey: API_KEY,
+                clientId: CLIENT_ID,
+                discoveryDocs: DISCOVERY_DOCS,
+                scope: SCOPES
+            }).then(() => {
+                const auth2 = gapi.auth2.getAuthInstance();
+                auth2.isSignedIn.listen(updateSigninStatus);
+                updateSigninStatus(auth2.isSignedIn.get());
+            });
+        }
+
+        function updateSigninStatus(isSignedIn) {
+            if (isSignedIn) {
+                document.getElementById('auth-button').style.display = 'none';
+                document.getElementById('save-cloud-button').style.display = 'inline-block';
+                document.getElementById('load-cloud-button').style.display = 'inline-block';
+            } else {
+                document.getElementById('auth-button').style.display = 'inline-block';
+                document.getElementById('save-cloud-button').style.display = 'none';
+                document.getElementById('load-cloud-button').style.display = 'none';
+            }
+        }
+
+        function handleAuthClick() {
+            gapi.auth2.getAuthInstance().signIn();
+        }
+
+        function saveToDrive() {
+            const historico = JSON.parse(localStorage.getItem('treinoHistorico') || '[]');
+            const content = JSON.stringify(historico);
+
+            if (fileId) {
+                const body = gapi.client.drive.files.update({
+                    fileId: fileId,
+                    uploadType: 'media',
+                    media: {
+                        mimeType: 'application/json',
+                        body: content
+                    }
+                });
+                body.execute(resp => console.log('Arquivo atualizado!'));
+            } else {
+                const fileMetadata = {
+                    'name': 'HistoricoTreinos.json',
+                    'mimeType': 'application/json'
+                };
+                const body = gapi.client.drive.files.create({
+                    resource: fileMetadata,
+                    media: {
+                        mimeType: 'application/json',
+                        body: content
+                    },
+                    fields: 'id'
+                });
+                body.execute(resp => {
+                    fileId = resp.id;
+                    console.log('Arquivo criado! ID:', fileId);
+                });
+            }
+        }
+
+        function loadFromDrive() {
+            gapi.client.drive.files.list({
+                q: "name='HistoricoTreinos.json' and mimeType='application/json'",
+                fields: 'files(id)'
+            }).then(resp => {
+                const files = resp.result.files;
+                if (files && files.length > 0) {
+                    fileId = files[0].id;
+                    gapi.client.drive.files.get({
+                        fileId: fileId,
+                        alt: 'media'
+                    }).then(resp => {
+                        const historico = resp.result;
+                        localStorage.setItem('treinoHistorico', JSON.stringify(historico));
+                        alert('Histórico carregado com sucesso!');
+                        mostrarHistorico(); // Atualiza a tela após carregar
+                    });
+                } else {
+                    alert('Nenhum histórico encontrado no seu Drive.');
+                }
+            });
+        }
+
         function gerarTreino(tipoTreino) {
             document.getElementById('historico-container').innerHTML = '';
             let tituloTreino = "";
@@ -229,119 +346,4 @@
 
             listaHTML += `
                 </ul>
-                <div class="cardio-section">
-                    <h3>Cardio</h3>
-                    <div class="cardio-input">
-                        <label for="cardioMinutes">Tempo de Cardio (min):</label>
-                        <input type="number" id="cardioMinutes" placeholder="minutos" min="0">
-                    </div>
-                </div>
-                <button id="save-button" onclick="salvarTreino('${tipoTreino}', '${tituloTreino}')">Salvar Treino</button>
-                <div id="saved-message" class="saved-message" style="display:none;">Treino salvo com sucesso!</div>
-            `;
-
-            document.getElementById("treino-container").innerHTML = `<div class="treino-box">${listaHTML}</div>`;
-            
-            const savedData = localStorage.getItem(`ultimo-treino-${tipoTreino}`);
-            if (savedData) {
-                const data = JSON.parse(savedData);
-                const exercises = document.querySelectorAll('#exercise-list li');
-                exercises.forEach((item, index) => {
-                    const weightInput = item.querySelector('input[type="number"]');
-                    if (data.exercises[index] && data.exercises[index].weight) {
-                         weightInput.value = data.exercises[index].weight;
-                    }
-                });
-            }
-        }
-
-        function toggleCompleted(checkbox) {
-            const exerciseText = checkbox.nextElementSibling;
-            if (checkbox.checked) {
-                exerciseText.classList.add('completed');
-            } else {
-                exerciseText.classList.remove('completed');
-            }
-        }
-
-        function salvarTreino(tipoTreino, tituloTreino) {
-            const data = {
-                date: new Date().toLocaleString('pt-BR'),
-                type: tipoTreino,
-                title: tituloTreino,
-                exercises: [],
-                cardioMinutes: document.getElementById('cardioMinutes').value
-            };
-            const exercises = document.querySelectorAll('#exercise-list li');
-            exercises.forEach((item, index) => {
-                const checkbox = item.querySelector('input[type="checkbox"]');
-                const weightInput = item.querySelector('input[type="number"]');
-                data.exercises.push({
-                    description: item.querySelector('.exercise-text').textContent,
-                    checked: checkbox.checked,
-                    weight: weightInput.value
-                });
-            });
-
-            const historico = JSON.parse(localStorage.getItem('treinoHistorico') || '[]');
-            historico.push(data);
-            localStorage.setItem('treinoHistorico', JSON.stringify(historico));
-
-            localStorage.setItem(`ultimo-treino-${tipoTreino}`, JSON.stringify(data));
-
-            const message = document.getElementById('saved-message');
-            message.style.display = 'block';
-            setTimeout(() => {
-                message.style.display = 'none';
-            }, 3000);
-        }
-        
-        function mostrarHistorico() {
-            document.getElementById('treino-container').innerHTML = '';
-            const historicoContainer = document.getElementById('historico-container');
-            const historico = JSON.parse(localStorage.getItem('treinoHistorico') || '[]');
-
-            if (historico.length === 0) {
-                historicoContainer.innerHTML = '<p>Nenhum treino salvo ainda.</p>';
-                return;
-            }
-
-            let historicoHTML = '<h2>Seu Histórico de Treinos</h2>';
-            historico.reverse().forEach((treino, index) => {
-                // A posição original é importante para a exclusão
-                const originalIndex = historico.length - 1 - index;
-                historicoHTML += `
-                    <div class="historico-box">
-                        <button class="delete-button" onclick="excluirTreino(${originalIndex})">Excluir</button>
-                        <h3>${treino.title} - ${treino.date}</h3>
-                        <ul>
-                            ${treino.exercises.map(ex => `
-                                <li>
-                                    <span class="${ex.checked ? 'completed' : ''}">${ex.description}</span>
-                                    <span>${ex.weight ? ex.weight + ' kg' : ''}</span>
-                                </li>
-                            `).join('')}
-                        </ul>
-                        <p><strong>Tempo de Cardio:</strong> ${treino.cardioMinutes || 0} min</p>
-                    </div>
-                `;
-            });
-            historicoContainer.innerHTML = historicoHTML;
-        }
-
-        function excluirTreino(index) {
-            const historico = JSON.parse(localStorage.getItem('treinoHistorico') || '[]');
-            
-            // Remove o item do array
-            historico.splice(index, 1);
-            
-            // Salva a lista de volta no localStorage
-            localStorage.setItem('treinoHistorico', JSON.stringify(historico));
-            
-            // Recarrega o histórico para mostrar a mudança
-            mostrarHistorico();
-        }
-    </script>
-
-</body>
-</html>
+                <div class="cardio
