@@ -188,10 +188,9 @@
 
     <script src="https://apis.google.com/js/api.js"></script>
     <script>
-	
-        // SUBSTITUA ESTE VALOR PELO SEU ID DO CLIENTE
-        const CLIENT_ID = '74728504867-8lh6airhmrigno0pnkee61i8lq4a34vu.apps.googleusercontent.com';
-        const API_KEY = ''; // Não é necessário, mas é boa prática
+        // Substitua este valor pelo seu ID do Cliente
+        const CLIENT_ID = 'SEU_ID_DO_CLIENTE_AQUI.apps.googleusercontent.com';
+        const API_KEY = '';
         const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"];
         const SCOPES = 'https://www.googleapis.com/auth/drive.file';
         
@@ -283,7 +282,7 @@
                         const historico = resp.result;
                         localStorage.setItem('treinoHistorico', JSON.stringify(historico));
                         alert('Histórico carregado com sucesso!');
-                        mostrarHistorico(); // Atualiza a tela após carregar
+                        mostrarHistorico();
                     });
                 } else {
                     alert('Nenhum histórico encontrado no seu Drive.');
@@ -346,4 +345,114 @@
 
             listaHTML += `
                 </ul>
-                <div class="cardio
+                <div class="cardio-section">
+                    <h3>Cardio</h3>
+                    <div class="cardio-input">
+                        <label for="cardioMinutes">Tempo de Cardio (min):</label>
+                        <input type="number" id="cardioMinutes" placeholder="minutos" min="0">
+                    </div>
+                </div>
+                <button id="save-button" onclick="salvarTreino('${tipoTreino}', '${tituloTreino}')">Salvar Treino</button>
+                <div id="saved-message" class="saved-message" style="display:none;">Treino salvo com sucesso!</div>
+            `;
+
+            document.getElementById("treino-container").innerHTML = `<div class="treino-box">${listaHTML}</div>`;
+            
+            const savedData = localStorage.getItem(`ultimo-treino-${tipoTreino}`);
+            if (savedData) {
+                const data = JSON.parse(savedData);
+                const exercises = document.querySelectorAll('#exercise-list li');
+                exercises.forEach((item, index) => {
+                    const weightInput = item.querySelector('input[type="number"]');
+                    if (data.exercises[index] && data.exercises[index].weight) {
+                         weightInput.value = data.exercises[index].weight;
+                    }
+                });
+            }
+        }
+
+        function toggleCompleted(checkbox) {
+            const exerciseText = checkbox.nextElementSibling;
+            if (checkbox.checked) {
+                exerciseText.classList.add('completed');
+            } else {
+                exerciseText.classList.remove('completed');
+            }
+        }
+
+        function salvarTreino(tipoTreino, tituloTreino) {
+            const data = {
+                date: new Date().toLocaleString('pt-BR'),
+                type: tipoTreino,
+                title: tituloTreino,
+                exercises: [],
+                cardioMinutes: document.getElementById('cardioMinutes').value
+            };
+            const exercises = document.querySelectorAll('#exercise-list li');
+            exercises.forEach((item, index) => {
+                const checkbox = item.querySelector('input[type="checkbox"]');
+                const weightInput = item.querySelector('input[type="number"]');
+                data.exercises.push({
+                    description: item.querySelector('.exercise-text').textContent,
+                    checked: checkbox.checked,
+                    weight: weightInput.value
+                });
+            });
+
+            const historico = JSON.parse(localStorage.getItem('treinoHistorico') || '[]');
+            historico.push(data);
+            localStorage.setItem('treinoHistorico', JSON.stringify(historico));
+
+            const message = document.getElementById('saved-message');
+            message.style.display = 'block';
+            setTimeout(() => {
+                message.style.display = 'none';
+            }, 3000);
+        }
+        
+        function mostrarHistorico() {
+            document.getElementById('treino-container').innerHTML = '';
+            const historicoContainer = document.getElementById('historico-container');
+            const historico = JSON.parse(localStorage.getItem('treinoHistorico') || '[]');
+
+            if (historico.length === 0) {
+                historicoContainer.innerHTML = '<p>Nenhum treino salvo ainda.</p>';
+                return;
+            }
+
+            let historicoHTML = '<h2>Seu Histórico de Treinos</h2>';
+            historico.reverse().forEach((treino, index) => {
+                const originalIndex = historico.length - 1 - index;
+                historicoHTML += `
+                    <div class="historico-box">
+                        <button class="delete-button" onclick="excluirTreino(${originalIndex})">Excluir</button>
+                        <h3>${treino.title} - ${treino.date}</h3>
+                        <ul>
+                            ${treino.exercises.map(ex => `
+                                <li>
+                                    <span class="${ex.checked ? 'completed' : ''}">${ex.description}</span>
+                                    <span>${ex.weight ? ex.weight + ' kg' : ''}</span>
+                                </li>
+                            `).join('')}
+                        </ul>
+                        <p><strong>Tempo de Cardio:</strong> ${treino.cardioMinutes || 0} min</p>
+                    </div>
+                `;
+            });
+            historicoContainer.innerHTML = historicoHTML;
+        }
+
+        function excluirTreino(index) {
+            const historico = JSON.parse(localStorage.getItem('treinoHistorico') || '[]');
+            
+            historico.splice(index, 1);
+            
+            localStorage.setItem('treinoHistorico', JSON.stringify(historico));
+            
+            mostrarHistorico();
+        }
+
+        handleClientLoad();
+    </script>
+</body>
+</html>
