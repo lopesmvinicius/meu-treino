@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Gerador de Treinos</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+        .container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 100%;
+        }
+        h1 {
+            color: #1a73e8;
+            margin-bottom: 10px;
+        }
+        p {
+            color: #666;
+            font-size: 1.1em;
+            margin-bottom: 25px;
+        }
+        .buttons-container {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        button {
+            background-color: #1a73e8;
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            font-size: 1em;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #155bb5;
+        }
+        #treino-container, #historico-container {
+            margin-top: 30px;
+            text-align: left;
+        }
+        .treino-box, .historico-box {
+            background-color: #e8f0fe;
+            border-left: 5px solid #1a73e8;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        .treino-box h2, .historico-box h2 {
+            margin-top: 0;
+            color: #1a73e8;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        ul li {
+            background-color: #d1e2f7;
+            margin-bottom: 10px;
+            padding: 10px 15px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        ul li .exercise-content {
+            display: flex;
+            align-items: center;
+            flex: 1;
+        }
+        ul li input[type="checkbox"] {
+            margin-right: 10px;
+            transform: scale(1.2);
+            cursor: pointer;
+        }
+        ul li input[type="number"] {
+            width: 70px;
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            text-align: right;
+            margin-left: 10px;
+        }
+        .completed {
+            text-decoration: line-through;
+            color: #888;
+        }
+        .cardio-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #b3d4fc;
+        }
+        .cardio-input {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .cardio-input label {
+            font-weight: bold;
+        }
+        #save-button {
+            background-color: #4CAF50;
+            margin-top: 15px;
+        }
+        #save-button:hover {
+            background-color: #45a049;
+        }
+        .saved-message {
+            margin-top: 10px;
+            color: green;
+            font-weight: bold;
+        }
+        .historico-box {
+            margin-bottom: 20px;
+            position: relative;
+        }
+        .historico-box h3 {
+            margin-bottom: 5px;
+        }
+        .delete-button {
+            background-color: #f44336;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+        .delete-button:hover {
+            background-color: #d32f2f;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Gerador de Treinos</h1>
+        <p>Selecione seu treino do dia, registre seu progresso e salve no histórico.</p>
+
+        <div class="buttons-container">
+            <button onclick="gerarTreino('A')">Treino A</button>
+            <button onclick="gerarTreino('B')">Treino B</button>
+            <button onclick="gerarTreino('C')">Treino C</button>
+        </div>
+        
+        <button onclick="mostrarHistorico()">Ver Histórico</button>
+
+        <div id="treino-container">
+            </div>
+
+        <div id="historico-container">
+            </div>
+    </div>
+
+    <script>
+        function gerarTreino(tipoTreino) {
+            document.getElementById('historico-container').innerHTML = '';
+            let tituloTreino = "";
+            let exerciciosData = [];
+
+            if (tipoTreino === 'A') {
+                tituloTreino = "A: Peito, Ombros e Tríceps";
+                exerciciosData = [
+                    "Supino com Barra (Reto): 4 séries de 8 repetições",
+                    "Desenvolvimento com Halteres (Sentado): 3 séries de 10 repetições",
+                    "Voador (Peck Deck) ou Crucifixo com Halteres: 3 séries de 12 repetições",
+                    "Elevação Lateral: 3 séries de 15 repetições",
+                    "Tríceps no Pulley com corda: 3 séries de 12 repetições"
+                ];
+            } else if (tipoTreino === 'B') {
+                tituloTreino = "B: Costas e Bíceps";
+                exerciciosData = [
+                    "Barra Fixa ou Puxada Frontal: 4 séries de 8-10 repetições",
+                    "Remada Curvada com Barra: 3 séries de 10 repetições",
+                    "Remada Serrote com Halter: 3 séries de 10-12 repetições (cada lado)",
+                    "Rosca Direta com Barra: 3 séries de 10-12 repetições",
+                    "Rosca Concentrada com Halter: 3 séries de 12 repetições (cada braço)"
+                ];
+            } else if (tipoTreino === 'C') {
+                tituloTreino = "C: Pernas e Abdômen";
+                exerciciosData = [
+                    "Agachamento Livre com Barra: 4 séries de 8-10 repetições",
+                    "Leg Press: 3 séries de 12 repetições",
+                    "Cadeira Extensora: 3 séries de 15 repetições",
+                    "Cadeira Flexora: 3 séries de 15 repetições",
+                    "Abdominal na prancha declinada: 3 séries de 15-20 repetições"
+                ];
+            }
+
+            let listaHTML = `
+                <h2>${tituloTreino}</h2>
+                <p>Foco em força e hipertrofia. Descanse 60-90 segundos entre as séries.</p>
+                <h3>Exercícios:</h3>
+                <ul id="exercise-list">
+            `;
+
+            exerciciosData.forEach((exercicio, index) => {
+                listaHTML += `
+                    <li>
+                        <div class="exercise-content">
+                            <input type="checkbox" id="check-${tipoTreino}-${index}" onclick="toggleCompleted(this)">
+                            <span class="exercise-text">${exercicio}</span>
+                        </div>
+                        <input type="number" id="weight-${tipoTreino}-${index}" placeholder="kg" min="0">
+                    </li>
+                `;
+            });
+
+            listaHTML += `
+                </ul>
+                <div class="cardio-section">
+                    <h3>Cardio</h3>
+                    <div class="cardio-input">
+                        <label for="cardioMinutes">Tempo de Cardio (min):</label>
+                        <input type="number" id="cardioMinutes" placeholder="minutos" min="0">
+                    </div>
+                </div>
+                <button id="save-button" onclick="salvarTreino('${tipoTreino}', '${tituloTreino}')">Salvar Treino</button>
+                <div id="saved-message" class="saved-message" style="display:none;">Treino salvo com sucesso!</div>
+            `;
+
+            document.getElementById("treino-container").innerHTML = `<div class="treino-box">${listaHTML}</div>`;
+            
+            const savedData = localStorage.getItem(`ultimo-treino-${tipoTreino}`);
+            if (savedData) {
+                const data = JSON.parse(savedData);
+                const exercises = document.querySelectorAll('#exercise-list li');
+                exercises.forEach((item, index) => {
+                    const weightInput = item.querySelector('input[type="number"]');
+                    if (data.exercises[index] && data.exercises[index].weight) {
+                         weightInput.value = data.exercises[index].weight;
+                    }
+                });
+            }
+        }
+
+        function toggleCompleted(checkbox) {
+            const exerciseText = checkbox.nextElementSibling;
+            if (checkbox.checked) {
+                exerciseText.classList.add('completed');
+            } else {
+                exerciseText.classList.remove('completed');
+            }
+        }
+
+        function salvarTreino(tipoTreino, tituloTreino) {
+            const data = {
+                date: new Date().toLocaleString('pt-BR'),
+                type: tipoTreino,
+                title: tituloTreino,
+                exercises: [],
+                cardioMinutes: document.getElementById('cardioMinutes').value
+            };
+            const exercises = document.querySelectorAll('#exercise-list li');
+            exercises.forEach((item, index) => {
+                const checkbox = item.querySelector('input[type="checkbox"]');
+                const weightInput = item.querySelector('input[type="number"]');
+                data.exercises.push({
+                    description: item.querySelector('.exercise-text').textContent,
+                    checked: checkbox.checked,
+                    weight: weightInput.value
+                });
+            });
+
+            const historico = JSON.parse(localStorage.getItem('treinoHistorico') || '[]');
+            historico.push(data);
+            localStorage.setItem('treinoHistorico', JSON.stringify(historico));
+
+            localStorage.setItem(`ultimo-treino-${tipoTreino}`, JSON.stringify(data));
+
+            const message = document.getElementById('saved-message');
+            message.style.display = 'block';
+            setTimeout(() => {
+                message.style.display = 'none';
+            }, 3000);
+        }
+        
+        function mostrarHistorico() {
+            document.getElementById('treino-container').innerHTML = '';
+            const historicoContainer = document.getElementById('historico-container');
+            const historico = JSON.parse(localStorage.getItem('treinoHistorico') || '[]');
+
+            if (historico.length === 0) {
+                historicoContainer.innerHTML = '<p>Nenhum treino salvo ainda.</p>';
+                return;
+            }
+
+            let historicoHTML = '<h2>Seu Histórico de Treinos</h2>';
+            historico.reverse().forEach((treino, index) => {
+                // A posição original é importante para a exclusão
+                const originalIndex = historico.length - 1 - index;
+                historicoHTML += `
+                    <div class="historico-box">
+                        <button class="delete-button" onclick="excluirTreino(${originalIndex})">Excluir</button>
+                        <h3>${treino.title} - ${treino.date}</h3>
+                        <ul>
+                            ${treino.exercises.map(ex => `
+                                <li>
+                                    <span class="${ex.checked ? 'completed' : ''}">${ex.description}</span>
+                                    <span>${ex.weight ? ex.weight + ' kg' : ''}</span>
+                                </li>
+                            `).join('')}
+                        </ul>
+                        <p><strong>Tempo de Cardio:</strong> ${treino.cardioMinutes || 0} min</p>
+                    </div>
+                `;
+            });
+            historicoContainer.innerHTML = historicoHTML;
+        }
+
+        function excluirTreino(index) {
+            const historico = JSON.parse(localStorage.getItem('treinoHistorico') || '[]');
+            
+            // Remove o item do array
+            historico.splice(index, 1);
+            
+            // Salva a lista de volta no localStorage
+            localStorage.setItem('treinoHistorico', JSON.stringify(historico));
+            
+            // Recarrega o histórico para mostrar a mudança
+            mostrarHistorico();
+        }
+    </script>
+
+</body>
+</html>
